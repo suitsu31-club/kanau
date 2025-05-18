@@ -1,4 +1,4 @@
-use futures::stream::{FuturesUnordered};
+use futures::stream::FuturesUnordered;
 use std::sync::Arc;
 use tokio_stream::Stream;
 
@@ -13,12 +13,12 @@ use tokio_stream::Stream;
 /// (the processing logic) in a single abstraction.
 pub trait Processor<I, O> {
     #[allow(missing_docs)]
-    fn process<'a>(&'a self, input: I) -> impl Future<Output = O> + Send + 'a where I: 'a;
+    fn process(&self, input: I) -> impl Future<Output = O> + Send;
 }
 
 // an async function is also a processor
 impl<I: Send, O: Send, F: Future<Output = O> + Send> Processor<I, O> for fn(I) -> F {
-    fn process<'a>(&'a self, input: I) -> impl Future<Output = O> + Send + 'a where I: 'a {
+    fn process(&self, input: I) -> impl Future<Output = O> + Send {
         (self)(input)
     }
 }
@@ -54,18 +54,18 @@ pub trait RefProcessor<Borrowed, O, Owned = ()> {
 }
 
 /// ## Parallel Map (borrowed version)
-/// 
+///
 /// `map` function, but for async functions.
-/// 
+///
 /// These async functions are executed in parallel.
-/// 
+///
 /// ## Arguments
-/// 
+///
 /// - `iter` - An iterator that yields references to the input items.
 /// - `ref_processor` - A reference of [RefProcessor] that will be used to process the input items.
-/// 
+///
 /// ## Returns
-/// 
+///
 /// A stream of output items. The order of the output items is *not guaranteed to be the same* as the input items.
 pub fn parallel_map_borrowed<'input, I, O, RP, Iter>(
     iter: Iter,
@@ -75,40 +75,36 @@ where
     I: Send + Sync + 'input,
     O: Send + Sync,
     RP: RefProcessor<I, O> + Send + Sync,
-    Iter: Iterator<Item = &'input I> + Send + Sync ,
+    Iter: Iterator<Item = &'input I> + Send + Sync,
 {
-    let set: FuturesUnordered<_> = iter
-        .map(|input| ref_processor.process(input, ()))
-        .collect();
+    let set: FuturesUnordered<_> = iter.map(|input| ref_processor.process(input, ())).collect();
     set
 }
 
 /// ## Parallel Map (owned version)
-/// 
+///
 /// `map` function, but for async functions.
-/// 
+///
 /// These async functions are executed in parallel.
-/// 
+///
 /// ## Arguments
-/// 
+///
 /// - `iter` - An iterator that yields the input items.
 /// - `ref_processor` - A reference of [Processor] that will be used to process the input items.
-/// 
+///
 /// ## Returns
-/// 
+///
 /// A stream of output items. The order of the output items is *not guaranteed to be the same* as the input items.
-pub fn parallel_map<'p,I, O, P, Iter>(
+pub fn parallel_map<'p, I, O, P, Iter>(
     iter: Iter,
     ref_processor: &'p P,
 ) -> impl Stream<Item = O> + Send + 'p
 where
     I: Send + Sync + 'p,
-    O: Send + Sync,
+    O: Send + Sync + 'p,
     P: Processor<I, O> + Send + Sync,
     Iter: Iterator<Item = I> + Send + Sync,
 {
-    let set: FuturesUnordered<_> = iter
-        .map(|input| ref_processor.process(input))
-        .collect();
+    let set: FuturesUnordered<_> = iter.map(|input| ref_processor.process(input)).collect();
     set
 }
