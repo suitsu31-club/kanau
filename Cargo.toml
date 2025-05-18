@@ -2,6 +2,7 @@
 name = "kanau"
 version = "0.1.0-alpha.1"
 edition = "2024"
+license = "MIT"
 description = "General purpose functional programming library for Rust."
 
 [dependencies]
