@@ -1,3 +1,3 @@
 # Kanau
 
-General purpose functional programming library for Rust.
+A tokio based, asynchronous, general purpose functional programming library for Rust.
