@@ -172,6 +172,16 @@ impl<Succ, Err, Expr> EarlyReturn<Result<Succ, Err>, Expr> {
     }
 }
 
+impl<T> EarlyReturn<T, T> {
+    /// Unwrap the early return.
+    pub fn safe_unwrap(self) -> T {
+        match self {
+            EarlyReturn::Expr(e) => e,
+            EarlyReturn::Return(r) => r,
+        }
+    }
+}
+
 #[macro_export]
 /// ## early_return
 ///
