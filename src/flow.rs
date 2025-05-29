@@ -90,6 +90,14 @@ impl<R, E> EarlyReturn<R, E> {
             EarlyReturn::Return(r) => EarlyReturn::Return(r),
         }
     }
+    
+    /// Create an early return from a result. The error is treated as the return value.
+    pub fn from_result<Ok>(res: Result<E, R>) -> EarlyReturn<Result<Ok, R>, E> {
+        match res {
+            Ok(t) => EarlyReturn::Expr(t),
+            Err(e) => EarlyReturn::Return(Err(e)),
+        }
+    }
 }
 
 impl<R, E> EarlyReturn<R, EarlyReturn<R, E>> {
