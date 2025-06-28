@@ -2,6 +2,10 @@
 name = "kanau-macro"
 version = "0.1.0"
 edition = "2024"
+license = "MIT"
+description = "Proc macros for kanau."
+repository = "https://github.com/suitsu31-club/kanau"
+authors = ["Nikaidou Haruki <nharuki@pm.me>"]
 
 [lib]
 proc-macro = true
