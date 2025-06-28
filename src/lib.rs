@@ -17,3 +17,6 @@ pub mod layer;
 #[cfg(feature = "message")]
 /// Message passing tool in MQ.
 pub mod message;
+
+#[cfg(test)]
+mod tests;

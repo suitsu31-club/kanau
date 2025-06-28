@@ -82,7 +82,7 @@ impl From<serde_json::Error> for DeserializeError {
 pub trait MessageSer {
     /// Error type for serialization.
     type SerError: Into<SerializeError>;
-    
+
     /// Serialize the message to bytes.
     fn to_bytes(self) -> Result<Box<[u8]>, Self::SerError>;
 }
