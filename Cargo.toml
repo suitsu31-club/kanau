@@ -4,7 +4,7 @@ members = ["kanau-macro"]
 
 [package]
 name = "kanau"
-version = "0.2.0-alpha.1"
+version = "0.2.0"
 edition = "2024"
 license = "MIT"
 description = "Functional programming library for web development."
