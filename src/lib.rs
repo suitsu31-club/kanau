@@ -13,3 +13,7 @@ pub mod flow;
 
 /// Something that wraps around a processor.
 pub mod layer;
+
+#[cfg(feature = "message")]
+/// Message passing tool in MQ.
+pub mod message;
