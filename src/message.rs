@@ -1,3 +1,4 @@
+use std::fmt::Debug;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -81,7 +82,7 @@ impl From<serde_json::Error> for DeserializeError {
 /// Message serialization
 pub trait MessageSer {
     /// Error type for serialization.
-    type SerError: Into<SerializeError>;
+    type SerError: Into<SerializeError> + Debug;
 
     /// Serialize the message to bytes.
     fn to_bytes(self) -> Result<Box<[u8]>, Self::SerError>;
@@ -90,7 +91,7 @@ pub trait MessageSer {
 /// Message deserialization
 pub trait MessageDe {
     /// Error type for deserialization.
-    type DeError: Into<DeserializeError>;
+    type DeError: Into<DeserializeError> + Debug;
 
     /// Deserialize the message from bytes.
     fn from_bytes(bytes: &[u8]) -> Result<Self, Self::DeError>
