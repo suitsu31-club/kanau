@@ -1,3 +1,5 @@
+#![cfg(feature = "rkyv")]
+
 use kanau_macro::{RkyvMessageDe, RkyvMessageSer};
 use crate as kanau;
 use crate::message::{MessageDe, MessageSer};
