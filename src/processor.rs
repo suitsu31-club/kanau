@@ -23,6 +23,15 @@ impl<I: Send, O: Send, F: Future<Output = O> + Send> Processor<I, O> for fn(I) -
     }
 }
 
+impl<P, I, O> Processor<I, O> for &mut P
+where
+    P: Processor<I, O> + ?Sized,
+{
+    fn process(&self, request: I) -> impl Future<Output = O> + Send {
+        (**self).process(request)
+    }
+}
+
 /// ## FinalProcessor
 ///
 /// A variant of processor to solve lifetime issues.
