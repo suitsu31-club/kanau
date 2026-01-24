@@ -1,4 +1,3 @@
-
 #[cfg(all(feature = "serde_json", feature = "message"))]
 mod serde_json_macro_inner;
 

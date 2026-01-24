@@ -1,6 +1,6 @@
 use proc_macro::TokenStream;
 use quote::quote;
-use syn::{parse_macro_input, DeriveInput};
+use syn::{DeriveInput, parse_macro_input};
 
 pub fn derive_bincode_byte_des(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
@@ -16,7 +16,8 @@ pub fn derive_bincode_byte_des(input: TokenStream) -> TokenStream {
                 bincode::decode_from_slice(bytes, bincode::config::standard()).map(|(res, _)| res)
             }
         }
-    }.into()
+    }
+    .into()
 }
 
 pub fn derive_bincode_byte_ser(input: TokenStream) -> TokenStream {

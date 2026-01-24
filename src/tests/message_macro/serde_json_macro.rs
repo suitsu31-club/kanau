@@ -1,10 +1,12 @@
 #![cfg(feature = "serde_json")]
 
-use kanau_macro::{JsonMessageDe, JsonMessageSer};
 use crate as kanau;
 use crate::message::{MessageDe, MessageSer};
+use kanau_macro::{JsonMessageDe, JsonMessageSer};
 
-#[derive(Debug, PartialEq, Clone, serde::Serialize, serde::Deserialize, JsonMessageDe, JsonMessageSer)]
+#[derive(
+    Debug, PartialEq, Clone, serde::Serialize, serde::Deserialize, JsonMessageDe, JsonMessageSer,
+)]
 struct ExampleUser {
     pub user_id: u64,
     pub username: String,

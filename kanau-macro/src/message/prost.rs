@@ -1,6 +1,6 @@
 use proc_macro::TokenStream;
 use quote::quote;
-use syn::{parse_macro_input, DeriveInput};
+use syn::{DeriveInput, parse_macro_input};
 
 pub fn derive_proto_des(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
@@ -15,7 +15,8 @@ pub fn derive_proto_des(input: TokenStream) -> TokenStream {
                 Self::decode(bytes)
             }
         }
-    }.into()
+    }
+    .into()
 }
 
 pub fn derive_proto_ser(input: TokenStream) -> TokenStream {
@@ -33,5 +34,6 @@ pub fn derive_proto_ser(input: TokenStream) -> TokenStream {
                 Ok(buf.into_boxed_slice())
             }
         }
-    }.into()
+    }
+    .into()
 }

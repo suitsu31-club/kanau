@@ -1,8 +1,10 @@
-use kanau_macro::{BincodeMessageDe, BincodeMessageSer};
 use crate as kanau;
 use crate::message::{MessageDe, MessageSer};
+use kanau_macro::{BincodeMessageDe, BincodeMessageSer};
 
-#[derive(Debug, PartialEq, Clone, bincode::Encode, bincode::Decode, BincodeMessageDe, BincodeMessageSer)]
+#[derive(
+    Debug, PartialEq, Clone, bincode::Encode, bincode::Decode, BincodeMessageDe, BincodeMessageSer,
+)]
 struct ExampleUser {
     pub user_id: u64,
     pub username: String,

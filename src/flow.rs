@@ -57,7 +57,13 @@ impl<R, E> EarlyReturn<R, E> {
     }
 
     /// Map the expression value with an async function.
-    pub async fn process_map<P: Processor<E, E2>, E2>(self, processor: &P) -> EarlyReturn<R, E2> {
+    pub async fn process_map<P: Processor<E>>(
+        self,
+        processor: &P,
+    ) -> EarlyReturn<R, Result<P::Output, P::Error>>
+    where
+        E: Send,
+    {
         match self {
             EarlyReturn::Expr(e) => EarlyReturn::Expr(processor.process(e).await),
             EarlyReturn::Return(r) => EarlyReturn::Return(r),
@@ -81,16 +87,23 @@ impl<R, E> EarlyReturn<R, E> {
     }
 
     /// Bind function of the monad with an async function.
-    pub async fn process_flat_map<P: Processor<E, EarlyReturn<R, E2>>, E2>(
+    pub async fn process_flat_map<P: Processor<E, Output = EarlyReturn<R, E2>>, E2>(
         self,
         processor: &P,
-    ) -> EarlyReturn<R, E2> {
+    ) -> EarlyReturn<R, Result<E2, P::Error>>
+    where
+        E: Send,
+    {
         match self {
-            EarlyReturn::Expr(e) => processor.process(e).await,
+            EarlyReturn::Expr(e) => match processor.process(e).await {
+                Ok(EarlyReturn::Expr(e2)) => EarlyReturn::Expr(Ok(e2)),
+                Ok(EarlyReturn::Return(r)) => EarlyReturn::Return(r),
+                Err(e) => EarlyReturn::Expr(Err(e)),
+            },
             EarlyReturn::Return(r) => EarlyReturn::Return(r),
         }
     }
-    
+
     /// Create an early return from a result. The error is treated as the return value.
     pub fn from_result<Ok>(res: Result<E, R>) -> EarlyReturn<Result<Ok, R>, E> {
         match res {
@@ -162,18 +175,17 @@ impl<Succ, Err, Expr> EarlyReturn<Result<Succ, Err>, Expr> {
     }
 
     /// Map the expression value with an async fallible function. Return the error if the function returns an error.
-    pub async fn try_process_map<
-        P: Processor<Expr, Result<Expr2, Err2>>,
-        Expr2,
-        Err2: Into<Err>,
-    >(
+    pub async fn try_process_map<P: Processor<Expr, Output = Expr2, Error = Err>, Expr2>(
         self,
         processor: &P,
-    ) -> EarlyReturn<Result<Succ, Err>, Expr2> {
+    ) -> EarlyReturn<Result<Succ, Err>, Expr2>
+    where
+        Expr: Send,
+    {
         match self {
             EarlyReturn::Expr(e) => match processor.process(e).await {
                 Ok(e) => EarlyReturn::Expr(e),
-                Err(e) => EarlyReturn::Return(Err(e.into())),
+                Err(e) => EarlyReturn::Return(Err(e)),
             },
             EarlyReturn::Return(r) => EarlyReturn::Return(r),
         }
@@ -216,41 +228,4 @@ macro_rules! monad_early_return {
             $crate::flow::EarlyReturn::Expr(e) => e,
         }
     };
-}
-
-/// ## Continuation Passing Style (CPS)
-///
-/// A function that takes a processor and a next function,
-/// and returns the result of the next function.
-///
-/// The next function is called with the result of the processor.
-pub async fn cps_pure<I, O, P: Processor<I, O>, Next>(
-    processor: &P,
-    input: I,
-    next: fn(O) -> Next,
-) -> Next {
-    next(processor.process(input).await)
-}
-
-/// ## Continuation Passing Style (CPS)
-///
-/// A function that takes two processors and an input,
-/// and returns the result of the second processor.
-///
-/// The first processor is called with the input,
-/// and the second processor is called with the result of the first processor.
-pub async fn cps<
-    I,
-    O,
-    Return,
-    P1: Processor<I, EarlyReturn<Return, O>>,
-    Final,
-    P2: Processor<O, EarlyReturn<Return, Final>>,
->(
-    first: &P1,
-    rest: &P2,
-    input: I,
-) -> EarlyReturn<Return, Final> {
-    let step1 = monad_early_return!(first.process(input).await);
-    rest.process(step1).await
 }

@@ -1,6 +1,6 @@
 use proc_macro::TokenStream;
 use quote::quote;
-use syn::{parse_macro_input, DeriveInput};
+use syn::{DeriveInput, parse_macro_input};
 
 pub fn derive_serde_json_byte_des(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
@@ -16,7 +16,8 @@ pub fn derive_serde_json_byte_des(input: TokenStream) -> TokenStream {
                 serde_json::from_slice(bytes)
             }
         }
-    }.into()
+    }
+    .into()
 }
 
 pub fn derive_serde_json_byte_ser(input: TokenStream) -> TokenStream {
@@ -30,5 +31,6 @@ pub fn derive_serde_json_byte_ser(input: TokenStream) -> TokenStream {
                 serde_json::to_vec(&self).map(|v| v.into_boxed_slice())
             }
         }
-    }.into()
+    }
+    .into()
 }

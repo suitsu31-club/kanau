@@ -18,6 +18,8 @@ pub mod layer;
 /// Message passing tool in MQ.
 pub mod message;
 
+pub mod chain;
+
 #[cfg(test)]
 mod tests;
 

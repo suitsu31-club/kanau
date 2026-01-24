@@ -1,10 +1,19 @@
 #![cfg(feature = "rkyv")]
 
-use kanau_macro::{RkyvMessageDe, RkyvMessageSer};
 use crate as kanau;
 use crate::message::{MessageDe, MessageSer};
+use kanau_macro::{RkyvMessageDe, RkyvMessageSer};
 
-#[derive(Debug, PartialEq, Clone, rkyv::Archive, rkyv::Serialize, rkyv::Deserialize, RkyvMessageDe, RkyvMessageSer)]
+#[derive(
+    Debug,
+    PartialEq,
+    Clone,
+    rkyv::Archive,
+    rkyv::Serialize,
+    rkyv::Deserialize,
+    RkyvMessageDe,
+    RkyvMessageSer,
+)]
 struct ExampleUser {
     pub user_id: u64,
     pub username: String,

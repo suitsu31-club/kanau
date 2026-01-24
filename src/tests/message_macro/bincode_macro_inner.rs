@@ -14,7 +14,7 @@ impl MessageDe for ExampleUser {
 
     fn from_bytes(bytes: &[u8]) -> Result<Self, Self::DeError>
     where
-        Self: Sized
+        Self: Sized,
     {
         bincode::decode_from_slice(bytes, bincode::config::standard()).map(|(res, _)| res)
     }

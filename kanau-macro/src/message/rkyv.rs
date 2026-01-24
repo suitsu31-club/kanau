@@ -1,6 +1,6 @@
 use proc_macro::TokenStream;
 use quote::quote;
-use syn::{parse_macro_input, DeriveInput};
+use syn::{DeriveInput, parse_macro_input};
 
 pub fn derive_rkyv_byte_des(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
@@ -19,7 +19,8 @@ pub fn derive_rkyv_byte_des(input: TokenStream) -> TokenStream {
                 Ok(de)
             }
         }
-    }.into()
+    }
+    .into()
 }
 
 pub fn derive_rkyv_byte_ser(input: TokenStream) -> TokenStream {
@@ -35,5 +36,6 @@ pub fn derive_rkyv_byte_ser(input: TokenStream) -> TokenStream {
                 Ok(bytes.into_boxed_slice())
             }
         }
-    }.into()
+    }
+    .into()
 }

@@ -14,7 +14,7 @@ impl MessageDe for ExampleUser {
 
     fn from_bytes(bytes: &[u8]) -> Result<Self, Self::DeError>
     where
-        Self: Sized
+        Self: Sized,
     {
         serde_json::from_slice(bytes)
     }
@@ -37,7 +37,7 @@ fn test_json_message() {
         user_age: 30,
         is_active: true,
     };
-    
+
     let user_clone = user.clone();
 
     let bytes = user.to_bytes().unwrap();

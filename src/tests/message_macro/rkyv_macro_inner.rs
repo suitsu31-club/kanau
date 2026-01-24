@@ -1,5 +1,5 @@
-use rkyv::{access, deserialize, rancor, Archive, Archived, Deserialize, Serialize};
 use crate::message::{MessageDe, MessageSer};
+use rkyv::{Archive, Archived, Deserialize, Serialize, access, deserialize, rancor};
 
 #[derive(Debug, PartialEq, Clone, Archive, Serialize, Deserialize)]
 struct ExampleUser {
