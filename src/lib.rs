@@ -10,7 +10,6 @@ pub mod processor;
 /// Monadic flow control.
 pub mod flow;
 
-/// Something that wraps around a processor.
 pub mod layer;
 
 #[cfg(feature = "message")]

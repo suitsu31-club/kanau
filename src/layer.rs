@@ -1,4 +1,4 @@
-use crate::chain::{ServiceChain, ServiceChain3};
+use crate::chain::{ProcessorPureFunctionChain, ServiceChain, ServiceChain3};
 use crate::processor::{Processor, ProcessorReturn};
 use std::fmt::Debug;
 use std::marker::PhantomData;
@@ -109,34 +109,38 @@ impl<I: Send + Sync, P: Processor<I> + Sync + Send, L: Proxy<I, P> + Sync + Send
     }
 }
 
+#[derive(Debug, Clone)]
 /// ## PureAdapter
 ///
 /// A pure adapter that does not hold any state.
-pub struct PureAdapter<I1, O1, I2, O2> {
-    in_function: fn(I1) -> I2,
-    out_function: fn(O2) -> O1,
+pub struct PureAdapter<Err, I1, O1, I2, O2> {
+    in_function: fn(I1) -> Result<I2, Err>,
+    out_function: fn(O2) -> Result<O1, Err>,
 }
 
-impl<I1, I2, O> PureAdapter<I1, O, I2, O> {
-    pub fn new_in(in_function: fn(I1) -> I2) -> Self {
+impl<Err, I1, I2, O> PureAdapter<Err, I1, O, I2, O> {
+    pub fn new_in(in_function: fn(I1) -> Result<I2, Err>) -> Self {
         Self {
             in_function,
-            out_function: |x| x,
+            out_function: |x| Ok(x),
         }
     }
 }
 
-impl<I, O1, O2> PureAdapter<I, O1, I, O2> {
-    pub fn new_out(out_function: fn(O2) -> O1) -> Self {
+impl<Err, I, O1, O2> PureAdapter<Err, I, O1, I, O2> {
+    pub fn new_out(out_function: fn(O2) -> Result<O1, Err>) -> Self {
         Self {
-            in_function: |x| x,
+            in_function: |x| Ok(x),
             out_function,
         }
     }
 }
 
-impl<I1, O1, I2, O2> PureAdapter<I1, O1, I2, O2> {
-    pub fn new_bidirectional(in_function: fn(I1) -> I2, out_function: fn(O2) -> O1) -> Self {
+impl<Err, I1, O1, I2, O2> PureAdapter<Err, I1, O1, I2, O2> {
+    pub fn new_bidirectional(
+        in_function: fn(I1) -> Result<I2, Err>,
+        out_function: fn(O2) -> Result<O1, Err>,
+    ) -> Self {
         Self {
             in_function,
             out_function,
@@ -144,20 +148,33 @@ impl<I1, O1, I2, O2> PureAdapter<I1, O1, I2, O2> {
     }
 }
 
-impl<I1, O1, I2, O2> Clone for PureAdapter<I1, O1, I2, O2> {
-    fn clone(&self) -> Self {
-        Self {
-            in_function: self.in_function,
-            out_function: self.out_function,
-        }
+impl<Err, I1, O1, I2, O2> PureAdapter<Err, I1, O1, I2, O2> {
+    pub fn embed<P: Processor<I2, Output = O2, Error = Err>>(
+        self,
+        processor: P,
+    ) -> ProcessorPureFunctionChain<I1, O1, I2, Err, P>
+    where
+        I1: Send,
+        I2: Send,
+        O2: Send,
+        P: Processor<I2, Output = O2, Error = Err> + Sync,
+    {
+        ProcessorPureFunctionChain::new_bidirectional(processor, self.in_function, self.out_function)
     }
-}
 
-impl<I1, O1, I2, O2> Debug for PureAdapter<I1, O1, I2, O2> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("PureAdapter")
-            .field("in_function", &"fn(I1) -> I2")
-            .field("out_function", &"fn(O2) -> O1")
-            .finish()
+    pub async fn wrap<P: Processor<I1, Output = O1, Error = Err>>(
+        self,
+        processor: &P,
+        input: I1
+    ) -> Result<O1, Err>
+    where
+        I1: Send,
+        I2: Send,
+        O2: Send,
+        P: Processor<I2, Output = O2, Error = Err>,
+    {
+        let converted = (self.in_function)(input)?;
+        let result = processor.process(converted).await?;
+        (self.out_function)(result)
     }
 }
