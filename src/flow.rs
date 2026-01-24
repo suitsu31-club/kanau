@@ -3,8 +3,6 @@ use crate::processor::Processor;
 /// ## EarlyReturn
 ///
 /// an enum that shows a value returned from a function should be returned early or not.
-///
-/// Usually used with [early_return!] or [monad_early_return!] macro.
 pub enum EarlyReturn<Return, Expr = ()> {
     /// Treat the value as an expression.
     Expr(Expr),
