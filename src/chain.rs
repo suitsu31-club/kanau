@@ -449,6 +449,187 @@ pub trait ProcessorChainExt<I: Send>: Processor<I> {
     {
         ServiceChain::new(self).then(processor2)
     }
+
+    /// Processes the input and wraps the result in a [PipedProcessResult] for fluent chaining.
+    ///
+    /// This is the entry point for the piped processing style, which allows chaining
+    /// processors and transformations using `.await` at each step rather than building
+    /// a static chain structure.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use kanau::chain::ProcessorChainExt;
+    /// # use kanau::processor::Processor;
+    /// # #[derive(Clone, Copy)]
+    /// # struct ProcessorA;
+    /// # #[derive(Clone, Copy)]
+    /// # struct ProcessorB;
+    /// # impl Processor<i32> for ProcessorA {
+    /// #     type Output = i32;
+    /// #     type Error = std::convert::Infallible;
+    /// #     async fn process(&self, input: i32) -> Result<i32, Self::Error> {
+    /// #         Ok(input * 2)
+    /// #     }
+    /// # }
+    /// # impl Processor<i32> for ProcessorB {
+    /// #     type Output = String;
+    /// #     type Error = std::convert::Infallible;
+    /// #     async fn process(&self, input: i32) -> Result<String, Self::Error> {
+    /// #         Ok(format!("{input}"))
+    /// #     }
+    /// # }
+    /// # async fn example() {
+    /// let processor_a = ProcessorA;
+    /// let processor_b = ProcessorB;
+    ///
+    /// let result: Result<String, _> = processor_a
+    ///     .process_and_pipe(42)
+    ///     .await
+    ///     .pipe(&processor_b)
+    ///     .await
+    ///     .map(|s| s.to_uppercase())
+    ///     .into();
+    /// # }
+    /// ```
+    fn process_and_pipe(&self, input: I) -> impl Future<Output = PipedProcessResult<Self::Output, Self::Error>> + Send
+    where
+        Self: Sized + Sync,
+        Self::Output: Send,
+        I: Send,
+    {
+        async move {
+            PipedProcessResult(self.process(input).await)
+        }
+    }
 }
 
 impl<I: Send, P: Processor<I>> ProcessorChainExt<I> for P {}
+
+/// A wrapper around `Result` that enables fluent, chainable processing pipelines.
+///
+/// `PipedProcessResult` provides a monadic interface for composing processors and
+/// transformations in a step-by-step fashion with explicit `.await` points. This
+/// complements [ServiceChain] by offering a more dynamic, runtime-oriented approach
+/// to pipeline construction.
+///
+/// # Comparison with [ServiceChain]
+///
+/// | Aspect | `ServiceChain` | `PipedProcessResult` |
+/// |--------|---------------|---------------------|
+/// | Structure | Static, compile-time | Dynamic, runtime |
+/// | Await points | Single await at end | Await after each step |
+/// | Error handling | Propagates at end | Can handle per-step |
+/// | Use case | Fixed pipelines | Conditional logic |
+///
+/// # Example
+///
+/// ```
+/// # use kanau::chain::{ProcessorChainExt, PipedProcessResult};
+/// # use kanau::processor::Processor;
+/// # #[derive(Clone, Copy)]
+/// # struct Tokenizer;
+/// # #[derive(Clone, Copy)]
+/// # struct Parser;
+/// # impl Processor<String> for Tokenizer {
+/// #     type Output = Vec<String>;
+/// #     type Error = String;
+/// #     async fn process(&self, input: String) -> Result<Vec<String>, Self::Error> {
+/// #         Ok(input.split_whitespace().map(String::from).collect())
+/// #     }
+/// # }
+/// # impl Processor<Vec<String>> for Parser {
+/// #     type Output = i32;
+/// #     type Error = String;
+/// #     async fn process(&self, input: Vec<String>) -> Result<i32, Self::Error> {
+/// #         Ok(input.len() as i32)
+/// #     }
+/// # }
+/// # async fn example() {
+/// let tokenizer = Tokenizer;
+/// let parser = Parser;
+///
+/// let result: Result<String, _> = tokenizer
+///     .process_and_pipe("hello world".to_string())
+///     .await
+///     .pipe(&parser)
+///     .await
+///     .map(|count| format!("Found {count} tokens"))
+///     .map_err(|e| format!("Pipeline failed: {e}"))
+///     .into();
+/// # }
+/// ```
+pub struct PipedProcessResult<T: Send, E>(pub Result<T, E>);
+
+impl<T: Send, E> PipedProcessResult<T, E> {
+    /// Pipes the success value through another processor.
+    ///
+    /// If `self` contains `Ok(value)`, passes `value` to the processor and wraps
+    /// the result. If `self` contains `Err`, the error is propagated unchanged.
+    pub async fn pipe<P>(self, processor: &P) -> PipedProcessResult<P::Output, E>
+    where
+        P: Processor<T, Error = E>,
+        P::Output: Send,
+    {
+        match self.0 {
+            Ok(t) => PipedProcessResult(processor.process(t).await),
+            Err(e) => PipedProcessResult(Err(e)),
+        }
+    }
+
+    /// Transforms the success value using a synchronous function.
+    ///
+    /// If `self` contains `Ok(value)`, applies `f` to produce a new value.
+    /// If `self` contains `Err`, the error is propagated unchanged.
+    pub fn map<F, Output>(self, f: F) -> PipedProcessResult<Output, E>
+    where
+        F: FnOnce(T) -> Output,
+        Output: Send,
+    {
+        match self.0 {
+            Ok(t) => PipedProcessResult(Ok(f(t))),
+            Err(e) => PipedProcessResult(Err(e)),
+        }
+    }
+
+    /// Chains with a function that returns a `PipedProcessResult`.
+    ///
+    /// Similar to `map`, but the function itself returns a `PipedProcessResult`,
+    /// allowing for operations that may fail or produce wrapped results.
+    pub fn flat_map<F, Output>(self, f: F) -> PipedProcessResult<Output, E>
+    where
+        F: FnOnce(T) -> PipedProcessResult<Output, E>,
+        Output: Send,
+    {
+        match self.0 {
+            Ok(t) => f(t),
+            Err(e) => PipedProcessResult(Err(e)),
+        }
+    }
+
+    /// Transforms the error value using a synchronous function.
+    ///
+    /// If `self` contains `Err(error)`, applies `f` to produce a new error type.
+    /// If `self` contains `Ok`, the value is propagated unchanged.
+    pub fn map_err<F, NewError>(self, f: F) -> PipedProcessResult<T, NewError>
+    where
+        F: FnOnce(E) -> NewError,
+    {
+        match self.0 {
+            Ok(t) => PipedProcessResult(Ok(t)),
+            Err(e) => PipedProcessResult(Err(f(e))),
+        }
+    }
+}
+
+impl<T: Send, E> From<Result<T, E>> for PipedProcessResult<T, E> {
+    fn from(result: Result<T, E>) -> Self {
+        PipedProcessResult(result)
+    }
+}
+
+impl<T: Send, E> From<PipedProcessResult<T, E>> for Result<T, E> {
+    fn from(piped_process_result: PipedProcessResult<T, E>) -> Self {
+        piped_process_result.0
+    }
+}
