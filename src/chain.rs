@@ -100,22 +100,6 @@ where
     }
 }
 
-impl<I1, Err, P1, P2> ArcProcessor<I1> for ServiceChain<I1, Err, P1, P2>
-where
-    P1: Processor<I1, Error = Err> + Sync + Send,
-    P2: Processor<P1::Output, Error = Err> + Sync + Send,
-    I1: Send,
-    P1::Output: Send,
-    P2::Output: Send,
-{
-    type Output = P2::Output;
-    type Error = Err;
-    async fn process(state: Arc<Self>, input: I1) -> Result<P2::Output, Err> {
-        let output1 = state.processor1.process(input).await?;
-        state.processor2.process(output1).await
-    }
-}
-
 #[derive(Debug, Clone)]
 /// ## ProcessorPureFunctionChain
 ///

@@ -78,14 +78,6 @@ impl<I: Send, E> Processor<I> for IdentityFunctor<I, E> {
     }
 }
 
-impl<I: Send, E> ArcProcessor<I> for IdentityFunctor<I, E> {
-    type Output = I;
-    type Error = E;
-    fn process(_state: Arc<Self>, input: I) -> impl Future<Output = Result<I, E>> + Send {
-        async move { Ok(input) }
-    }
-}
-
 /// ## AsyncFnProcessor
 ///
 /// A processor that is created from an async function.
@@ -134,6 +126,18 @@ pub trait ArcProcessor<I> {
         state: Arc<Self>,
         input: I,
     ) -> impl Future<Output = Result<Self::Output, Self::Error>> + Send;
+}
+
+impl<I, P: ?Sized> ArcProcessor<I> for P
+where
+    P: Processor<I> + Sync + Send,
+    I: Send,
+{
+    type Output = P::Output;
+    type Error = P::Error;
+    async fn process(state: Arc<Self>, input: I) -> Result<P::Output, P::Error> {
+        state.as_ref().process(input).await
+    }
 }
 
 /// ## Parallel Map

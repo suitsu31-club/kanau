@@ -5,7 +5,6 @@
 #![deny(clippy::panic)]
 #![doc = include_str!("../README.md")]
 
-/// Async closure `Fn(I) -> Future<Output = O>` as a trait.
 pub mod processor;
 
 /// Monadic flow control.
