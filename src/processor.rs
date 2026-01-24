@@ -75,6 +75,7 @@
 //! #         Ok(Response)
 //! #     }
 //! # }
+//! use kanau::processor::Processor;
 //!
 //! struct MyHandler {
 //!     db: DatabasePool,  // owned, not borrowed
@@ -85,7 +86,7 @@
 //!     type Error = DbError;
 //!
 //!     async fn process(&self, req: Request) -> Result<Response, DbError> {
-//!         db.query(req).await
+//!         self.db.query(req).await
 //!     }
 //! }
 //! ```
@@ -110,7 +111,7 @@ use tokio_stream::Stream;
 ///
 /// # Example
 ///
-/// ```ignore
+/// ```
 /// use kanau::processor::Processor;
 ///
 /// struct Greeter {
@@ -141,6 +142,7 @@ pub trait Processor<I: Send> {
     /// # struct MyError;
     /// # struct Request;
     /// # struct Response;
+    /// use kanau::processor::Processor;
     /// impl Processor<Request> for MyProcessor {
     ///     type Output = Response;
     ///     type Error = MyError;
@@ -194,10 +196,11 @@ where
 ///
 /// ```
 /// use kanau::processor::{Processor, IdentityFunctor};
-///
+/// # async {
 /// let identity: IdentityFunctor<i32, ()> = IdentityFunctor::new();
 /// let result = identity.process(42).await;
 /// assert_eq!(result, Ok(42));
+/// # };
 /// ```
 #[derive(Debug, Clone, Copy)]
 pub struct IdentityFunctor<I, E> {
@@ -233,7 +236,7 @@ impl<I: Send, E> Processor<I> for IdentityFunctor<I, E> {
 ///
 /// # Example
 ///
-/// ```ignore
+/// ```
 /// use kanau::processor::{Processor, AsyncFnProcessor};
 ///
 /// async fn double(x: i32) -> Result<i32, ()> {
@@ -241,8 +244,10 @@ impl<I: Send, E> Processor<I> for IdentityFunctor<I, E> {
 /// }
 ///
 /// let processor = AsyncFnProcessor::new(double);
+/// # async {
 /// let result = processor.process(21).await;
 /// assert_eq!(result, Ok(42));
+/// # };
 /// ```
 pub struct AsyncFnProcessor<I, O, E, Fut: Future<Output = Result<O, E>> + Send> {
     f: fn(I) -> Fut,
@@ -276,18 +281,48 @@ impl<I: Send, O, E, Fut: Future<Output = Result<O, E>> + Send> Processor<I>
 /// While [`Processor::process`] takes `&self`, the returned future borrows from the processor.
 /// This works fine for `.await`-ing inline, but causes lifetime issues when spawning:
 ///
-/// ```ignore
+/// ```compile_fail
+/// use kanau::processor::Processor;
+/// use tokio::spawn;
+/// struct MyProcessor;
+///
+/// impl Processor<i32> for MyProcessor {
+///     type Output = i32;
+///     type Error = ();
+///     async fn process(&self, input: i32) -> Result<i32, ()> {
+///         Ok(input * 2)
+///     }
+/// }
+///
+/// let processor = MyProcessor;
+/// let input = 42;
 /// // This won't compile — future borrows from `processor`
 /// tokio::spawn(processor.process(input));
 /// ```
 ///
+/// > requirement that the value outlives `'static`
+///
 /// `ArcProcessor` solves this by taking `Arc<Self>` instead of `&self`. The `Arc` is moved
 /// into the future, ensuring the processor lives as long as the future needs it:
 ///
-/// ```ignore
+/// ```
+/// # use kanau::processor::{Processor, ArcProcessor};
+/// # use std::sync::Arc;
+/// # struct MyProcessor;
+/// # impl Processor<i32> for MyProcessor {
+///     # type Output = i32;
+///     # type Error = ();
+///     # async fn process(&self, input: i32) -> Result<i32, ()> {
+///     #     Ok(input * 2)
+///     # }
+/// # }
 /// // This works — Arc is moved into the spawned task
-/// let processor = Arc::new(MyProcessor::new());
+/// # #[tokio::main]
+/// # async fn main() {
+/// let processor = Arc::new(MyProcessor);
+/// # let input = 42;
 /// tokio::spawn(ArcProcessor::process(Arc::clone(&processor), input));
+/// # }
 /// ```
 ///
 /// # Blanket Implementation
@@ -335,17 +370,32 @@ where
 ///
 /// # Example
 ///
-/// ```ignore
+/// ```
 /// use kanau::processor::{Processor, parallel_map};
 /// use tokio_stream::StreamExt;
+/// # struct MyProcessor;
+/// impl Processor<i32> for MyProcessor {
+///     type Output = i32;
+///     type Error = ();
+///     async fn process(&self, input: i32) -> Result<i32, ()> {
+///         Ok(input * 2)
+///     }
+/// }
+/// # impl MyProcessor {
+/// #     fn new() -> Self { MyProcessor }
+/// # }
 ///
+/// # #[tokio::main]
+/// # async fn main() {
 /// let processor = MyProcessor::new();
 /// let inputs = vec![1, 2, 3, 4, 5];
 ///
 /// let mut stream = parallel_map(inputs.into_iter(), &processor);
 /// while let Some(result) = stream.next().await {
-///     println!("Got: {:?}", result);
+///     assert!(result.is_ok());
+///     assert!(result.unwrap() % 2 == 0);
 /// }
+/// # }
 /// ```
 ///
 /// # Performance Note
