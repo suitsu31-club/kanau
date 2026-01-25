@@ -150,14 +150,7 @@ impl<P1, P2> Adapter<P1, P2> {
     ///
     /// - `in_converter` — Processor that transforms external input to inner input
     /// - `out_converter` — Processor that transforms inner output to external output
-    pub fn new<I1, I, O, Err>(in_converter: P1, out_converter: P2) -> Self
-    where
-        I1: Send,
-        I: Send,
-        O: Send,
-        P1: Processor<I1, Output = I, Error = Err>,
-        P2: Processor<O, Error = Err>,
-    {
+    pub fn new(in_converter: P1, out_converter: P2) -> Self {
         Self {
             in_converter,
             out_converter,
