@@ -140,7 +140,7 @@ pub struct ServiceChain<
 }
 
 #[allow(missing_docs)]
-pub type ServiceChain1<I1, Err, P1> = ServiceChain<I1, Err, IdentityFunctor<I1, Err>, P1>;
+pub type ServiceChain1<I1, Err, P1> = ServiceChain<I1, Err, IdentityFunctor<Err>, P1>;
 
 #[allow(missing_docs)]
 pub type ServiceChain2<I1, Err, P1, P2> = ServiceChain<I1, Err, ServiceChain1<I1, Err, P1>, P2>;
@@ -169,7 +169,7 @@ pub type ServiceChain7<I1, Err, P1, P2, P3, P4, P5, P6, P7> =
 pub type ServiceChain8<I1, Err, P1, P2, P3, P4, P5, P6, P7, P8> =
     ServiceChain<I1, Err, ServiceChain7<I1, Err, P1, P2, P3, P4, P5, P6, P7>, P8>;
 
-impl<I, Err, P> ServiceChain<I, Err, IdentityFunctor<I, Err>, P>
+impl<I, Err, P> ServiceChain<I, Err, IdentityFunctor<Err>, P>
 where
     P: Processor<I, Error = Err>,
     I: Send,
@@ -492,15 +492,16 @@ pub trait ProcessorChainExt<I: Send>: Processor<I> {
     ///     .into();
     /// # }
     /// ```
-    fn process_and_pipe(&self, input: I) -> impl Future<Output = PipedProcessResult<Self::Output, Self::Error>> + Send
+    fn process_and_pipe(
+        &self,
+        input: I,
+    ) -> impl Future<Output = PipedProcessResult<Self::Output, Self::Error>> + Send
     where
         Self: Sized + Sync,
         Self::Output: Send,
         I: Send,
     {
-        async move {
-            PipedProcessResult(self.process(input).await)
-        }
+        async move { PipedProcessResult(self.process(input).await) }
     }
 }
 

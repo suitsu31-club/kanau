@@ -189,7 +189,6 @@ where
 ///
 /// # Type Parameters
 ///
-/// - `I` — The input (and output) type
 /// - `E` — The error type (never actually produced)
 ///
 /// # Example
@@ -197,26 +196,26 @@ where
 /// ```
 /// use kanau::processor::{Processor, IdentityFunctor};
 /// # async {
-/// let identity: IdentityFunctor<i32, ()> = IdentityFunctor::new();
+/// let identity: IdentityFunctor<()> = IdentityFunctor::new();
 /// let result = identity.process(42).await;
 /// assert_eq!(result, Ok(42));
 /// # };
 /// ```
 #[derive(Debug, Clone, Copy)]
-pub struct IdentityFunctor<I, E> {
-    _input_phantom: PhantomData<fn(I) -> Result<I, E>>,
+pub struct IdentityFunctor<E> {
+    _error_phantom: PhantomData<fn() -> E>,
 }
 
-impl<I, E> IdentityFunctor<I, E> {
+impl<E> IdentityFunctor<E> {
     /// Create a new identity functor.
     pub fn new() -> Self {
         Self {
-            _input_phantom: PhantomData,
+            _error_phantom: PhantomData,
         }
     }
 }
 
-impl<I: Send, E> Processor<I> for IdentityFunctor<I, E> {
+impl<I: Send, E> Processor<I> for IdentityFunctor<E> {
     type Output = I;
     type Error = E;
     fn process(&self, input: I) -> impl Future<Output = Result<I, E>> + Send {
