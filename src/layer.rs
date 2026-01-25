@@ -88,34 +88,27 @@ pub trait Proxy<I: Send, P: Processor<I>> {
     fn wrap(&self, processor: &P, input: I) -> impl Future<Output = ProcessorReturn<P, I>> + Send;
 }
 
-/// Transforms input and output types around a processor using processor-based converters.
+/// A pair of converter processors for transforming input/output types.
 ///
-/// `Adapter` is the heavyweight sibling of [`PureAdapter`]. While `PureAdapter` uses simple
-/// functions for conversion, `Adapter` uses full [`Processor`]s, allowing for:
+/// `Adapter` holds two processors: one to convert input before processing, and one to
+/// convert output after. Unlike [`PureAdapter`] which uses sync functions, `Adapter`
+/// uses full [`Processor`]s for conversions, enabling:
 ///
 /// - **Async conversions**: Database lookups, API calls during transformation
 /// - **Stateful conversions**: Converters that maintain caches or counters
-/// - **Complex validation**: Multi-step input validation with early returns
+/// - **Fallible conversions**: Return errors during transformation
 ///
 /// # Type Flow
 ///
 /// ```text
-///                    ┌───────────────────────────────────────┐
-///                    │              Adapter                  │
-///                    │                                       │
-///  Input ──────────► │ in_converter ──► [processor] ──► out_converter ──► Output
-///                    │                                       │
-///                    └───────────────────────────────────────┘
+/// Input ──► in_converter ──► [processor] ──► out_converter ──► Output
+///               (P1)                              (P2)
 /// ```
 ///
 /// # Type Parameters
 ///
-/// - `Input` — External input type
-/// - `InnerInput` — Type produced by `in_converter`, consumed by the wrapped processor
-/// - `InnerOutput` — Type produced by the wrapped processor, consumed by `out_converter`
-/// - `Err` — Shared error type across all processors
-/// - `P1` — Input converter processor (`Input` → `InnerInput`)
-/// - `P2` — Output converter processor (`InnerOutput` → final output)
+/// - `P1` — Input converter processor
+/// - `P2` — Output converter processor
 ///
 /// # Example
 ///
@@ -123,7 +116,6 @@ pub trait Proxy<I: Send, P: Processor<I>> {
 /// use kanau::layer::Adapter;
 /// use kanau::processor::Processor;
 ///
-/// // Converters as simple processors
 /// struct ParseInt;
 /// impl Processor<String> for ParseInt {
 ///     type Output = i32;
@@ -142,45 +134,33 @@ pub trait Proxy<I: Send, P: Processor<I>> {
 ///     }
 /// }
 ///
+/// // String → i32 → (process) → i32 → String
 /// let adapter = Adapter::new(ParseInt, FormatResult);
-/// // Now `adapter.wrap(&some_int_processor, string_input)` works
 /// ```
 #[derive(Debug, Clone)]
-pub struct Adapter<
-    Input: Send,
-    InnerInput,
-    InnerOutput: Send,
-    Err,
-    P1: Processor<Input, Output = InnerInput, Error = Err>,
-    P2: Processor<InnerOutput, Error = Err>,
-> {
+pub struct Adapter<P1, P2> {
     in_converter: P1,
     out_converter: P2,
-    _in_phantom: PhantomData<fn(Input) -> Result<InnerInput, Err>>,
-    _out_phantom: PhantomData<fn(InnerOutput) -> Result<P2::Output, Err>>,
 }
 
-impl<
-    I1: Send,
-    I: Send,
-    O: Send,
-    Err,
-    P1: Processor<I1, Output = I, Error = Err>,
-    P2: Processor<O, Error = Err>,
-> Adapter<I1, I, O, Err, P1, P2>
-{
+impl<P1, P2> Adapter<P1, P2> {
     /// Creates a new adapter with the given input and output converters.
     ///
     /// # Arguments
     ///
     /// - `in_converter` — Processor that transforms external input to inner input
     /// - `out_converter` — Processor that transforms inner output to external output
-    pub fn new(in_converter: P1, out_converter: P2) -> Self {
+    pub fn new<I1, I, O, Err>(in_converter: P1, out_converter: P2) -> Self
+    where
+        I1: Send,
+        I: Send,
+        O: Send,
+        P1: Processor<I1, Output = I, Error = Err>,
+        P2: Processor<O, Error = Err>,
+    {
         Self {
             in_converter,
             out_converter,
-            _in_phantom: PhantomData,
-            _out_phantom: PhantomData,
         }
     }
 
@@ -197,11 +177,18 @@ impl<
     ///
     /// - `processor` — The inner processor to wrap
     /// - `input` — The external input to process
-    pub async fn wrap(
+    pub async fn wrap<I1, I, O, Err>(
         &self,
         processor: &impl Processor<I, Output = O, Error = Err>,
         input: I1,
-    ) -> ProcessorReturn<P2, O> {
+    ) -> ProcessorReturn<P2, O>
+    where
+        I1: Send,
+        I: Send,
+        O: Send,
+        P1: Processor<I1, Output = I, Error = Err>,
+        P2: Processor<O, Error = Err>,
+    {
         let converted = self.in_converter.process(input).await?;
         let result = processor.process(converted).await?;
         self.out_converter.process(result).await
@@ -222,14 +209,17 @@ impl<
     /// # Returns
     ///
     /// A [`ServiceChain3`] that processes `I1` inputs and produces `P2::Output`.
-    pub fn embed<PInner: Processor<I, Output = O, Error = Err>>(
+    pub fn embed<PInner, I1, I, O, Err>(
         self,
         processor: PInner,
     ) -> ServiceChain3<I1, Err, P1, PInner, P2>
     where
+        I1: Send,
         I: Send,
-        PInner: Sync,
-        P1: Sync,
+        O: Send,
+        PInner: Processor<I, Output = O, Error = Err> + Sync,
+        P1: Processor<I1, Output = I, Error = Err> + Sync,
+        P2: Processor<O, Error = Err> + Sync,
     {
         ServiceChain::new(self.in_converter)
             .then(processor)
@@ -443,7 +433,11 @@ impl<Err, I1, O1, I2, O2> PureAdapter<Err, I1, O1, I2, O2> {
         O2: Send,
         P: Processor<I2, Output = O2, Error = Err> + Sync,
     {
-        ProcessorPureFunctionChain::new_bidirectional(processor, self.in_function, self.out_function)
+        ProcessorPureFunctionChain::new_bidirectional(
+            processor,
+            self.in_function,
+            self.out_function,
+        )
     }
 
     /// Applies this adapter to wrap a processor call.
