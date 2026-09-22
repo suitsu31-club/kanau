@@ -1,6 +1,5 @@
 #![cfg(all(feature = "musli-wire", feature = "message"))]
 
-use crate as kanau;
 use crate::message::{MessageDe, MessageSer};
 use kanau_macro::{MusliWireMessageDe, MusliWireMessageSer};
 

@@ -1,4 +1,3 @@
-use crate as kanau;
 use crate::message::{MessageDe, MessageSer};
 use kanau_macro::{BincodeMessageDe, BincodeMessageSer};
 

@@ -1,6 +1,5 @@
 #![cfg(all(feature = "serde_json", feature = "message"))]
 
-use crate as kanau;
 use crate::message::{MessageDe, MessageSer};
 use kanau_macro::{JsonMessageDe, JsonMessageSer};
 

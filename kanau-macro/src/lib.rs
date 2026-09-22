@@ -1,3 +1,4 @@
+mod krate;
 mod message;
 
 #[proc_macro_derive(BincodeMessageDe)]

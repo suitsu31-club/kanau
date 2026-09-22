@@ -11,8 +11,7 @@ authors = ["Nikaidou Haruki <nharuki@pm.me>"]
 proc-macro = true
 
 [dependencies]
-syn = { version = "2", features = ["full"] }
-proc-macro2 = "1.0"
-convert_case = "0.8.0"
+syn = "2"
 quote = "1"
-regex = "1.11.1"
+proc-macro2 = "1"
+proc-macro-crate = "3"

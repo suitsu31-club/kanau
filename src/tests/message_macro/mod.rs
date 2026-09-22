@@ -10,6 +10,8 @@ mod rkyv_macro_inner;
 #[cfg(all(feature = "musli-wire", feature = "message"))]
 mod musli_wire_macro_inner;
 
+mod hygiene;
+
 mod musli_wire_macro;
 
 #[cfg(all(feature = "bincode", feature = "message"))]
