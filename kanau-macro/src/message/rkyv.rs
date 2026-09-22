@@ -31,9 +31,19 @@ pub fn derive_rkyv_byte_des(input: TokenStream) -> TokenStream {
             where
                 Self: Sized
             {
-                let archived =
-                    ::rkyv::access::<::rkyv::Archived<Self>, ::rkyv::rancor::Error>(bytes)?;
-                ::rkyv::deserialize(archived)
+                if bytes.as_ptr() as usize % ::rkyv::util::AlignedVec::<16>::ALIGNMENT == 0 {
+                    let archived =
+                        ::rkyv::access::<::rkyv::Archived<Self>, ::rkyv::rancor::Error>(bytes)?;
+                    ::rkyv::deserialize(archived)
+                } else {
+                    let mut aligned =
+                        ::rkyv::util::AlignedVec::<16>::with_capacity(bytes.len());
+                    aligned.extend_from_slice(bytes);
+                    let archived = ::rkyv::access::<::rkyv::Archived<Self>, ::rkyv::rancor::Error>(
+                        &aligned,
+                    )?;
+                    ::rkyv::deserialize(archived)
+                }
             }
         },
     )
