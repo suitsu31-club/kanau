@@ -39,3 +39,13 @@ pub fn derive_prost_byte_des(input: proc_macro::TokenStream) -> proc_macro::Toke
 pub fn derive_prost_byte_ser(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
     message::prost::derive_proto_ser(input)
 }
+
+#[proc_macro_derive(MusliWireMessageDe)]
+pub fn derive_musli_wire_byte_des(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    message::musli_wire::derive_musli_wire_byte_des(input)
+}
+
+#[proc_macro_derive(MusliWireMessageSer)]
+pub fn derive_musli_wire_byte_ser(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    message::musli_wire::derive_musli_wire_byte_ser(input)
+}

@@ -52,3 +52,11 @@ pub use kanau_macro::ProstMessageDe;
 #[cfg(all(feature = "prost", feature = "message"))]
 /// Prost message serialization.
 pub use kanau_macro::ProstMessageSer;
+
+#[cfg(all(feature = "musli-wire", feature = "message"))]
+/// Musli wire message deserialization.
+pub use kanau_macro::MusliWireMessageDe;
+
+#[cfg(all(feature = "musli-wire", feature = "message"))]
+/// Musli wire message serialization.
+pub use kanau_macro::MusliWireMessageSer;

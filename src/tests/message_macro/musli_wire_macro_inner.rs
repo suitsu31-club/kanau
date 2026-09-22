@@ -1,12 +1,6 @@
-#![cfg(all(feature = "serde_json", feature = "message"))]
-
-use crate as kanau;
 use crate::message::{MessageDe, MessageSer};
-use kanau_macro::{JsonMessageDe, JsonMessageSer};
 
-#[derive(
-    Debug, PartialEq, Clone, serde::Serialize, serde::Deserialize, JsonMessageDe, JsonMessageSer,
-)]
+#[derive(Debug, PartialEq, Clone, musli::Encode, musli::Decode)]
 struct ExampleUser {
     pub user_id: u64,
     pub username: String,
@@ -15,8 +9,27 @@ struct ExampleUser {
     pub is_active: bool,
 }
 
+impl MessageDe for ExampleUser {
+    type DeError = musli::wire::Error;
+
+    fn from_bytes(bytes: &[u8]) -> Result<Self, Self::DeError>
+    where
+        Self: Sized,
+    {
+        musli::wire::from_slice(bytes)
+    }
+}
+
+impl MessageSer for ExampleUser {
+    type SerError = musli::wire::Error;
+
+    fn to_bytes(self) -> Result<Box<[u8]>, Self::SerError> {
+        musli::wire::to_vec(&self).map(|v| v.into_boxed_slice())
+    }
+}
+
 #[test]
-fn test_json_message() {
+fn test_musli_wire_message() {
     let user = ExampleUser {
         user_id: 1,
         username: "John".to_string(),

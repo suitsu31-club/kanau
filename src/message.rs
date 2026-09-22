@@ -33,6 +33,13 @@ impl From<prost::EncodeError> for SerializeError {
     }
 }
 
+#[cfg(feature = "musli-wire")]
+impl From<musli::wire::Error> for SerializeError {
+    fn from(e: musli::wire::Error) -> Self {
+        SerializeError(e.into())
+    }
+}
+
 #[cfg(feature = "serde_json")]
 impl From<serde_json::Error> for SerializeError {
     fn from(e: serde_json::Error) -> Self {
@@ -68,6 +75,13 @@ impl From<bincode::error::DecodeError> for DeserializeError {
 #[cfg(feature = "prost")]
 impl From<prost::DecodeError> for DeserializeError {
     fn from(e: prost::DecodeError) -> Self {
+        DeserializeError(e.into())
+    }
+}
+
+#[cfg(feature = "musli-wire")]
+impl From<musli::wire::Error> for DeserializeError {
+    fn from(e: musli::wire::Error) -> Self {
         DeserializeError(e.into())
     }
 }

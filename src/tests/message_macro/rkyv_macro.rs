@@ -1,4 +1,4 @@
-#![cfg(feature = "rkyv")]
+#![cfg(all(feature = "rkyv", feature = "message"))]
 
 use crate as kanau;
 use crate::message::{MessageDe, MessageSer};
