@@ -20,3 +20,14 @@ pub(crate) fn kanau() -> TokenStream {
         Err(_) => quote!(::kanau),
     }
 }
+
+/// Path to a codec crate re-exported by `kanau`, given the path from [`kanau`].
+///
+/// Generated code must not name the codec at the consumer's crate root: the
+/// consumer enabled a `kanau` feature, not necessarily a direct dependency, and
+/// a direct dependency may be a different major version than the one `kanau`
+/// implements its error conversions for.
+pub(crate) fn codec(kanau: &TokenStream, name: &str) -> TokenStream {
+    let ident = Ident::new(name, Span::call_site());
+    quote!(#kanau::__private::#ident)
+}

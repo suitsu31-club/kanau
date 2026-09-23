@@ -21,6 +21,28 @@ pub mod chain;
 #[cfg(test)]
 mod tests;
 
+/// Codec crates for the message derives' generated code. Not public API.
+///
+/// Generated impls name codecs through here rather than at the consumer's crate
+/// root, so enabling a backend feature is sufficient on its own and the codec is
+/// always the version `kanau` was built against.
+#[cfg(feature = "message")]
+#[doc(hidden)]
+pub mod __private {
+    #[cfg(feature = "bincode")]
+    pub use bincode;
+    #[cfg(feature = "musli-wire")]
+    pub use musli;
+    #[cfg(feature = "prost")]
+    pub use prost;
+    #[cfg(feature = "rkyv")]
+    pub use rkyv;
+    #[cfg(feature = "serde_json")]
+    pub use serde;
+    #[cfg(feature = "serde_json")]
+    pub use serde_json;
+}
+
 #[cfg(all(feature = "bincode", feature = "message"))]
 /// Bincode message deserialization.
 pub use kanau_macro::BincodeMessageDe;
