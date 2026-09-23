@@ -4,7 +4,7 @@ members = ["kanau-macro"]
 
 [package]
 name = "kanau"
-version = "0.5.2"
+version = "0.6.0"
 edition = "2024"
 license = "MIT"
 description = "Functional programming library for web development."
@@ -27,7 +27,7 @@ bincode = {version = "^2.0", optional = true}
 rkyv = {version = "^0.8", optional = true}
 prost = {version = "0.14", optional = true}
 musli = {version = "0.1.8", optional = true}
-kanau-macro = {path = "./kanau-macro", version = "0.1.0", optional = true}
+kanau-macro = {path = "./kanau-macro", version = "0.2", optional = true}
 
 [features]
 message = ["dep:kanau-macro"]
